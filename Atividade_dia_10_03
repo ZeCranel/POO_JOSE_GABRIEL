@@ -1,0 +1,118 @@
+from abc import ABC, abstractmethod
+
+class LimiteEmprestimosExcedido(Exception):
+    pass
+
+class LivroIndisponivel(Exception):
+    pass
+
+
+class Livro:
+    def __init__(self, isbn, titulo, autor):
+        self.isbn = isbn
+        self.titulo = titulo
+        self.autor = autor
+        self.disponivel = True
+
+    def emprestar(self):
+        self.disponivel = False
+
+    def devolver(self):
+        self.disponivel = True
+
+
+class Usuario(ABC):
+    def __init__(self, matricula, nome):
+        self.matricula = matricula
+        self.nome = nome
+        self.lista_livros_emprestados = []
+
+    @abstractmethod
+    def pegar_emprestado(self, livro):
+        pass
+
+    @abstractmethod
+    def devolver_livro(self, livro):
+        pass
+
+
+class Aluno(Usuario):
+    LIMITE = 3
+
+    def pegar_emprestado(self, livro):
+        if len(self.lista_livros_emprestados) >= self.LIMITE:
+            raise LimiteEmprestimosExcedido("Aluno excedeu o limite de livros")
+
+        self.lista_livros_emprestados.append(livro)
+        livro.emprestar()
+
+    def devolver_livro(self, livro):
+        self.lista_livros_emprestados.remove(livro)
+        livro.devolver()
+
+
+class Professor(Usuario):
+    LIMITE = 5
+
+    def pegar_emprestado(self, livro):
+        if len(self.lista_livros_emprestados) >= self.LIMITE:
+            raise LimiteEmprestimosExcedido("Professor excedeu o limite")
+
+        self.lista_livros_emprestados.append(livro)
+        livro.emprestar()
+
+    def devolver_livro(self, livro):
+        self.lista_livros_emprestados.remove(livro)
+        livro.devolver()
+
+
+class Biblioteca:
+    def __init__(self):
+        self.acervo = []
+        self.usuarios_cadastrados = []
+
+    def cadastrar_usuario(self, usuario):
+        self.usuarios_cadastrados.append(usuario)
+
+    def registrar_emprestimo(self, matricula, isbn):
+        usuario = next((u for u in self.usuarios_cadastrados if u.matricula == matricula), None)
+        livro = next((l for l in self.acervo if l.isbn == isbn), None)
+
+        # Prevenção contra atributos 'None' caso não encontre o usuário ou o livro
+        if usuario is None:
+            raise ValueError(f"Usuário com matrícula '{matricula}' não encontrado.")
+            
+        if livro is None:
+            raise ValueError(f"Livro com ISBN '{isbn}' não encontrado.")
+
+        if not livro.disponivel:
+            raise LivroIndisponivel("Livro indisponível para empréstimo.")
+
+        usuario.pegar_emprestado(livro)
+
+    def consultar_livros_emprestados(self):
+        for usuario in self.usuarios_cadastrados:
+            print(f"\nUsuário: {usuario.nome} ({type(usuario).__name__})")
+            if not usuario.lista_livros_emprestados:
+                print("- Nenhum livro emprestado no momento.")
+            for livro in usuario.lista_livros_emprestados:
+                print(f"- {livro.titulo}")
+
+
+# Testando a aplicação
+biblioteca = Biblioteca()
+
+biblioteca.acervo.append(Livro("LIV001", "Titulo 1", "Autor 1"))
+biblioteca.acervo.append(Livro("LIV002", "Titulo 2", "Autor 2"))
+biblioteca.acervo.append(Livro("LIV003", "Titulo 3", "Autor 3"))
+
+aluno1 = Aluno("A001", "José")
+prof1 = Professor("P001", "Carlos")
+
+biblioteca.cadastrar_usuario(aluno1)
+biblioteca.cadastrar_usuario(prof1)
+
+biblioteca.registrar_emprestimo("A001", "LIV001")
+biblioteca.registrar_emprestimo("P001", "LIV002")
+
+biblioteca.consultar_livros_emprestados()
